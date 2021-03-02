@@ -1,0 +1,2 @@
+Essentially back up data on the importatn files partition. Add permissions to make it harder to encrypt without root access. Once everything is backed up unmount the drive.
+This process can be put on a timer either with CRON on SYSTEMD to run every X amount of time. 

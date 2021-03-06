@@ -22,6 +22,13 @@ namespace MaybeMalicious
 
             if (kwargs["action"] == "encrypt")
             {
+                if (!kwargs.ContainsKey("target"))
+                {
+                    Console.WriteLine("Attempted to encrypt a file without specifying a target!");
+                    PrintHelp();
+                    return;
+                }
+                
                 Random r = new Random();
                 byte[] key = new byte[32];
                 r.NextBytes(key);
@@ -44,6 +51,13 @@ namespace MaybeMalicious
             }
             else if (kwargs["action"] == "decrypt")
             {
+                if (!(kwargs.ContainsKey("target") && kwargs.ContainsKey("key")))
+                {
+                    Console.WriteLine("Attempted decryption without a target or a key!");
+                    PrintHelp();
+                    return;
+                }
+                
                 aes.Key = Convert.FromBase64String(kwargs["key"]);
 
                 if (kwargs["type"] == "file")
@@ -57,6 +71,13 @@ namespace MaybeMalicious
             }
             else if (kwargs["action"] == "key")
             {
+                if (!(kwargs.ContainsKey("target") && kwargs.ContainsKey("key")))
+                {
+                    Console.WriteLine("Attempted key recovery without a target or a key!");
+                    PrintHelp();
+                    return;
+                }
+
                 using RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
                 byte[] rsaPrivKeyBytes = Convert.FromBase64String(kwargs["key"]);
                 rsa.ImportRSAPrivateKey(rsaPrivKeyBytes, out int _);
@@ -64,7 +85,7 @@ namespace MaybeMalicious
             }
             else
             {
-                Console.WriteLine("Unknonw action. Exiting!");
+                Console.WriteLine("Unknown action. Exiting!");
                 return;
             }
         }

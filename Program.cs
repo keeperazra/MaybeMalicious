@@ -92,7 +92,7 @@ namespace MaybeMalicious
 
         private static void SaveKey(byte[] key, RSACryptoServiceProvider rsa)
         {
-            string path = new Uri(System.Reflection.Assembly.GetExecutingAssembly().Location).AbsolutePath;
+            string path = new Uri(System.Reflection.Assembly.GetExecutingAssembly().CodeBase).AbsolutePath;
             string filePath = Path.Combine(Path.GetDirectoryName(path), "key.enc");
             byte[] cryptoText = rsa.Encrypt(key, false);
 

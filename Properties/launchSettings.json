@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "MaybeMalicious": {
+      "commandName": "Project"
+    },
+    "EncTestFile": {
+      "commandName": "Project",
+      "commandLineArgs": "-f test.txt -e"
+    },
+    "RecoverKey": {
+      "commandName": "Project",
+      "commandLineArgs": "-f key.enc --keyfile key -r"
+    },
+    "RecoverFile": {
+      "commandName": "Project",
+      "commandLineArgs": "-f test.txt --keyfile key.enc.dec"
+    }
+  }
+}

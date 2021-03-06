@@ -1,4 +1,4 @@
 # MaybeMalicious
-Test project
+Experimental Malware for a school project.
 
-Full description TBD
+For full documenation, see [the wiki](https://github.com/keeperazra/MaybeMalicious/wiki).
